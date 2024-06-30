@@ -1,12 +1,12 @@
-use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher, Config, Event};
 use daemonize::Daemonize;
+use env_logger::Env;
+use log::{error, info};
+use notify::{Config, Event, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use notify_rust::Notification;
-use todayiwill::appointment::{self, Config as TiwConfig};
-use std::{fs::File, sync::mpsc::channel};
 use std::thread;
 use std::time::Duration;
-use log::{info, error};
-use env_logger::Env;
+use std::{fs::File, sync::mpsc::channel};
+use todayiwill::appointment::{self, Config as TiwConfig};
 
 extern crate dirs;
 
@@ -26,17 +26,21 @@ fn main() -> Result<()> {
     }
 
     let (tx, rx) = channel();
-    let mut watcher: RecommendedWatcher = Watcher::new(tx, Config::default().with_poll_interval(Duration::from_secs(10)))?;
-    watcher.watch(&dirs::data_dir().unwrap().join("todayiwill"), RecursiveMode::NonRecursive)?;
+    let mut watcher: RecommendedWatcher = Watcher::new(
+        tx,
+        Config::default().with_poll_interval(Duration::from_secs(10)),
+    )?;
+    watcher.watch(
+        &dirs::data_dir().unwrap().join("todayiwill"),
+        RecursiveMode::NonRecursive,
+    )?;
 
     info!("Watching for file changes...");
 
-    let _handle = thread::spawn(move || {
-        loop {
-            match rx.recv() {
-                Ok(event) => handle_event(event.unwrap()),
-                Err(e) => error!("watch error: {:?}", e),
-            }
+    thread::spawn(move || loop {
+        match rx.recv() {
+            Ok(event) => handle_event(event.unwrap()),
+            Err(e) => error!("watch error: {:?}", e),
         }
     });
 
@@ -48,7 +52,9 @@ fn main() -> Result<()> {
 // Function to handle events.
 fn handle_event(event: Event) {
     info!("Event: {:?}", event);
-    let appointments = appointment::list::get_appointments_from_file(&TiwConfig::default().appointment_file_path_current_day);
+    let appointments = appointment::list::get_appointments_from_file(
+        &TiwConfig::default().appointment_file_path_current_day,
+    );
     for appointment in appointments {
         info!("Appointment found: {:?}", appointment);
     }
