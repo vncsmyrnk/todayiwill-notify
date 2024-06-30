@@ -1,8 +1,8 @@
-# todayiwill notify
+# Notification Daemon for todayiwill
 
 ![Rust](https://img.shields.io/badge/rust-1.79+-green?logo=rust)
 
-Notifier daemon for notifying appointments created with [todayiwill](https://github.com/vncsmyrnk/todayiwill).
+Daemon for notifying appointments created with [todayiwill](https://github.com/vncsmyrnk/todayiwill).
 
 ## 🔧 Development with docker
 

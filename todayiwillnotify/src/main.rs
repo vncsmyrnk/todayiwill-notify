@@ -1,7 +1,7 @@
 use notify::{RecommendedWatcher, RecursiveMode, Result, Watcher, Config, Event};
 use daemonize::Daemonize;
 use notify_rust::Notification;
-use todayiwill::appointment::{self, Config as tiwConfig};
+use todayiwill::appointment::{self, Config as TiwConfig};
 use std::{fs::File, sync::mpsc::channel};
 use std::thread;
 use std::time::Duration;
@@ -48,7 +48,7 @@ fn main() -> Result<()> {
 // Function to handle events.
 fn handle_event(event: Event) {
     info!("Event: {:?}", event);
-    let appointments = appointment::list::get_appointments_from_file(&tiwConfig::default().appointment_file_path_current_day);
+    let appointments = appointment::list::get_appointments_from_file(&TiwConfig::default().appointment_file_path_current_day);
     for appointment in appointments {
         info!("Appointment found: {:?}", appointment);
     }
