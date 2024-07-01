@@ -13,4 +13,4 @@ log = "0.4.22"
 notify = "6.1.1"
 notify-rust = "4.11.0"
 rustix = "0.38.34"
-todayiwill = { git = "https://github.com/vncsmyrnk/todayiwill.git", branch = "8-add-system-notifications" }
+todayiwill = { git = "https://github.com/vncsmyrnk/todayiwill.git", branch = "main" }
