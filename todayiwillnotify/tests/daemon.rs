@@ -11,7 +11,10 @@ use rustix::process::{self, Pid, Signal};
 use todayiwill::{Appointment, AppointmentTime};
 
 fn helper_write_to_appointment_data_file(content: &[u8]) {
-    let data_file = dirs::data_dir().unwrap().join("todayiwill").join(format!("appointments_{}.txt", Local::now().format("%d%m%Y")));
+    let data_file = dirs::data_dir().unwrap().join("todayiwill").join(format!(
+        "appointments_{}.txt",
+        Local::now().format("%d%m%Y")
+    ));
     fs::create_dir_all(data_file.parent().unwrap()).expect("Failed to create data dir");
     let mut file = File::create(data_file.to_str().unwrap()).expect("Failed to create test file");
     file.write_all(content)
@@ -55,9 +58,7 @@ fn daemon_should_log() {
     helper_write_to_appointment_data_file(&format!("{}\n", appointment).into_bytes());
     remove_all_daemon_files();
 
-    let base_dir = dirs::data_dir()
-        .unwrap()
-        .join("todayiwillnotify");
+    let base_dir = dirs::data_dir().unwrap().join("todayiwillnotify");
 
     let daemon_pid_file = base_dir.join("daemon.pid");
     let daemon_stdout_file = base_dir.join("daemon.out");

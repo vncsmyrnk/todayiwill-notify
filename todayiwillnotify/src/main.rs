@@ -130,5 +130,7 @@ fn main() -> Result<()> {
 }
 
 fn get_appointments_from_file() -> Vec<todayiwill::Appointment> {
-    appointment::list::get_appointments_from_file(&TiwConfig::standard().appointment_file_path_current_day)
+    appointment::list::get_appointments_from_file(
+        &TiwConfig::standard().appointment_file_path_current_day,
+    )
 }
