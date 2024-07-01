@@ -4,9 +4,9 @@ use log::{error, info};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use notify_rust::Notification;
 use std::sync::{Arc, Mutex};
-use std::{process, thread};
 use std::time::Duration;
 use std::{fs::File, sync::mpsc::channel};
+use std::{process, thread};
 use todayiwill::appointment::{self, Config as TiwConfig};
 use todayiwill::AppointmentTime;
 
@@ -71,11 +71,17 @@ fn main() -> Result<()> {
             {
                 let notification_result = Notification::new()
                     .summary("Reminder")
-                    .body(&appointment.description)
+                    .body(
+                        format!(
+                            "Your appointment \"{}\" begins at {}",
+                            appointment.description, appointment.time
+                        )
+                        .as_str(),
+                    )
                     .show();
                 match notification_result {
                     Ok(..) => info!("Appointment \"{appointment}\" notified"),
-                    Err(e) => error!("Failed to notify {appointment}. Error {e}"),
+                    Err(e) => error!("Failed to notify \"{appointment}\". Error: {e}"),
                 }
                 false
             } else {
