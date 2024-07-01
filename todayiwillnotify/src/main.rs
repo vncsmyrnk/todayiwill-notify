@@ -3,10 +3,11 @@ use env_logger::Env;
 use log::{error, info};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use notify_rust::Notification;
+use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+use std::{env, fs, process, thread};
 use std::{fs::File, sync::mpsc::channel};
-use std::{process, thread};
 use todayiwill::appointment::{self, Config as TiwConfig};
 use todayiwill::AppointmentTime;
 
@@ -14,13 +15,38 @@ extern crate dirs;
 
 fn main() -> Result<()> {
     env_logger::init_from_env(Env::default().default_filter_or("info"));
+    let todayiwill_default_dir = dirs::data_dir().unwrap().join("todayiwill");
+
+    let seconds_interval = env::var("SECONDS_INTERVAL")
+        .unwrap_or_else(|_| "20".to_string())
+        .parse::<u64>()
+        .expect("SECONDS_INTERVAL must be a valid number");
+
+    let seconds_to_notify = env::var("SECONDS_TO_NOTIFY")
+        .unwrap_or_else(|_| "1".to_string())
+        .parse::<i32>()
+        .expect("SECONDS_TO_NOTIFY must be a valid number");
+
+    let todayiwill_data_path = PathBuf::from(
+        env::var("TODAYIWILL_PATH")
+            .unwrap_or_else(|_| todayiwill_default_dir.to_str().unwrap().to_string()),
+    );
+
+    let daemon_path = dirs::state_dir()
+        .expect("Failed to obtain daemon dir")
+        .join("todayiwillnotify");
+
+    if !daemon_path.exists() {
+        fs::create_dir(&daemon_path).expect("Failed to create daemon dir");
+    }
 
     let daemonize = Daemonize::new()
-        .pid_file("/tmp/todayiwillnotify-daemon.pid")
+        .pid_file(daemon_path.join("daemon.pid"))
         .chown_pid_file(true)
         .working_directory("/tmp")
-        .stdout(File::create("/tmp/todayiwillnotify-daemon.out").unwrap())
-        .stderr(File::create("/tmp/todayiwillnotify-daemon.err").unwrap());
+        .stdout(File::create(daemon_path.join("daemon.out")).unwrap())
+        .stdout(File::create(daemon_path.join("daemon.out")).unwrap())
+        .stderr(File::create(daemon_path.join("daemon.err")).unwrap());
 
     match daemonize.start() {
         Ok(_) => info!("Daemonized successfully"),
@@ -30,20 +56,31 @@ fn main() -> Result<()> {
         }
     }
 
+    info!("Setup > SLEEP_INTERVAL: {seconds_interval}; SECONDS_TO_NOTIFY: {seconds_to_notify}; TODAYIWILL_PATH: {}", todayiwill_data_path.to_str().unwrap());
+
     let appointments = Arc::new(Mutex::new(vec![]));
     let appointments_clone = appointments.clone();
+
+    loop {
+        if todayiwill_data_path.exists() {
+            break;
+        }
+        error!("Data dir not found. Waiting 10 seconds for another retry");
+        thread::sleep(Duration::from_secs(10));
+    }
 
     let (tx, rx) = channel();
     let mut watcher: RecommendedWatcher = Watcher::new(
         tx,
         Config::default().with_poll_interval(Duration::from_secs(10)),
     )?;
-    watcher.watch(
-        &dirs::data_dir().unwrap().join("todayiwill"),
-        RecursiveMode::NonRecursive,
-    )?;
 
-    info!("Watching for file changes...");
+    watcher.watch(&todayiwill_data_path, RecursiveMode::NonRecursive)?;
+
+    info!(
+        "Watching for file changes in \"{}\"",
+        todayiwill_data_path.to_str().unwrap()
+    );
 
     thread::spawn(move || loop {
         match rx.recv() {
@@ -63,11 +100,11 @@ fn main() -> Result<()> {
         }
     });
 
-    thread::spawn(move || loop {
+    loop {
         let mut appointments = appointments.lock().unwrap();
         appointments.retain(|appointment| {
             if appointment.time > AppointmentTime::now()
-                && AppointmentTime::now() + 1 >= appointment.time
+                && AppointmentTime::now() + seconds_to_notify >= appointment.time
             {
                 let notification_result = Notification::new()
                     .summary("Reminder")
@@ -90,10 +127,6 @@ fn main() -> Result<()> {
         });
         info!("Appointments left to notify: {}", appointments.len());
         drop(appointments);
-        thread::sleep(Duration::from_secs(20));
-    });
-
-    loop {
-        thread::sleep(Duration::from_secs(60));
+        thread::sleep(Duration::from_secs(seconds_interval));
     }
 }
