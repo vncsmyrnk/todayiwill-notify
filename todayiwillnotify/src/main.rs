@@ -1,6 +1,6 @@
 use daemonize::Daemonize;
 use env_logger::Env;
-use log::{error, info};
+use log::{debug, error, info};
 use notify::{Config, RecommendedWatcher, RecursiveMode, Result, Watcher};
 use notify_rust::Notification;
 use std::path::PathBuf;
@@ -22,17 +22,17 @@ fn main() -> Result<()> {
         .parse::<u64>()
         .expect("SECONDS_INTERVAL must be a valid number");
 
-    let seconds_to_notify = env::var("SECONDS_TO_NOTIFY")
+    let minutes_to_notify = env::var("MINUTES_TO_NOTIFY")
         .unwrap_or_else(|_| "1".to_string())
         .parse::<i32>()
-        .expect("SECONDS_TO_NOTIFY must be a valid number");
+        .expect("MINUTES_TO_NOTIFY must be a valid number");
 
     let todayiwill_data_path = PathBuf::from(
         env::var("TODAYIWILL_PATH")
             .unwrap_or_else(|_| todayiwill_default_dir.to_str().unwrap().to_string()),
     );
 
-    let daemon_path = dirs::state_dir()
+    let daemon_path = dirs::data_dir()
         .expect("Failed to obtain daemon dir")
         .join("todayiwillnotify");
 
@@ -56,9 +56,9 @@ fn main() -> Result<()> {
         }
     }
 
-    info!("Setup > SLEEP_INTERVAL: {seconds_interval}; SECONDS_TO_NOTIFY: {seconds_to_notify}; TODAYIWILL_PATH: {}", todayiwill_data_path.to_str().unwrap());
+    info!("Setup > SECONDS_INTERVAL: {seconds_interval}; MINUTES_TO_NOTIFY: {minutes_to_notify}; TODAYIWILL_PATH: {}", todayiwill_data_path.to_str().unwrap());
 
-    let appointments = Arc::new(Mutex::new(vec![]));
+    let appointments = Arc::new(Mutex::new(get_appointments_from_file()));
     let appointments_clone = appointments.clone();
 
     loop {
@@ -87,9 +87,7 @@ fn main() -> Result<()> {
             Ok(event) => {
                 let mut appointments = appointments_clone.lock().unwrap();
                 info!("Event: {:?}", event);
-                let file_appointments = appointment::list::get_appointments_from_file(
-                    &TiwConfig::default().appointment_file_path_current_day,
-                );
+                let file_appointments = get_appointments_from_file();
                 *appointments = file_appointments
                     .into_iter()
                     .filter(|appointment| appointment.time > AppointmentTime::now())
@@ -104,7 +102,7 @@ fn main() -> Result<()> {
         let mut appointments = appointments.lock().unwrap();
         appointments.retain(|appointment| {
             if appointment.time > AppointmentTime::now()
-                && AppointmentTime::now() + seconds_to_notify >= appointment.time
+                && AppointmentTime::now() + minutes_to_notify >= appointment.time
             {
                 let notification_result = Notification::new()
                     .summary("Reminder")
@@ -125,8 +123,14 @@ fn main() -> Result<()> {
                 true
             }
         });
-        info!("Appointments left to notify: {}", appointments.len());
+        debug!("Appointments left to notify: {}", appointments.len());
         drop(appointments);
         thread::sleep(Duration::from_secs(seconds_interval));
     }
+}
+
+fn get_appointments_from_file() -> Vec<todayiwill::Appointment> {
+    appointment::list::get_appointments_from_file(
+        &TiwConfig::standard().appointment_file_path_current_day,
+    )
 }
