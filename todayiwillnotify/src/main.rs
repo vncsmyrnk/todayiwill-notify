@@ -61,6 +61,14 @@ fn main() -> Result<()> {
     let appointments = Arc::new(Mutex::new(vec![]));
     let appointments_clone = appointments.clone();
 
+    loop {
+        if todayiwill_data_path.exists() {
+            break;
+        }
+        error!("Data dir not found. Waiting 10 seconds for another retry");
+        thread::sleep(Duration::from_secs(10));
+    }
+
     let (tx, rx) = channel();
     let mut watcher: RecommendedWatcher = Watcher::new(
         tx,
