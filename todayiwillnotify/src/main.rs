@@ -32,7 +32,7 @@ fn main() -> Result<()> {
             .unwrap_or_else(|_| todayiwill_default_dir.to_str().unwrap().to_string()),
     );
 
-    let daemon_path = dirs::state_dir()
+    let daemon_path = dirs::data_dir()
         .expect("Failed to obtain daemon dir")
         .join("todayiwillnotify");
 
@@ -56,7 +56,7 @@ fn main() -> Result<()> {
         }
     }
 
-    info!("Setup > SLEEP_INTERVAL: {seconds_interval}; SECONDS_TO_NOTIFY: {seconds_to_notify}; TODAYIWILL_PATH: {}", todayiwill_data_path.to_str().unwrap());
+    info!("Setup > SECONDS_INTERVAL: {seconds_interval}; SECONDS_TO_NOTIFY: {seconds_to_notify}; TODAYIWILL_PATH: {}", todayiwill_data_path.to_str().unwrap());
 
     let appointments = Arc::new(Mutex::new(vec![]));
     let appointments_clone = appointments.clone();
